@@ -10,13 +10,15 @@ const userSchema = new Schema({
         type: String,
         require: function () {
             return !this.Phone
-        }
+        },
+        unique: true
     },
     Phone: {
         type: String,
         require: function () {
             return this.Email
-        }
+        },
+        unique: true
     },
     Otp: {
         type: Number,
