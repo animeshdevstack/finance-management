@@ -3,7 +3,7 @@ const cors = require("cors");
 const userRouter = require("./routes/auth.routes");
 const configuration = require("./config/configuration");
 const Connection = require("./libs/connection");
-const itemRouter = require("./routes/item.routes");
+const categoryRouter = require("./routes/category.routes");
 const historyExpenseRouter = require("./routes/history-expense.routes");
 const logger = require("./helpers/logger");
 const app = new Express();
@@ -29,7 +29,7 @@ app.get("/", (req, res) => {
 });
 
 app.use(appVersion, userRouter)
-app.use(`${appVersion}/items`, itemRouter)
+app.use(`${appVersion}/categories`, categoryRouter)
 app.use(`${appVersion}/history-expenses`, historyExpenseRouter)
 
 Connection()

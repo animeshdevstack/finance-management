@@ -1,24 +1,29 @@
 const mongoose = require("mongoose");
 
 const historyEnpenseSchema = new mongoose.Schema({
-    ItemId: {
+    CategoryId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "items",
-        required: true
+        ref: "categories",
+        required: true,
     },
     UserId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "users",
-        required: true
+        required: true,
     },
     Amount: {
         type: Number,
         required: true,
-        default: 0
+        default: 0,
     },
-},{
-    timestamps: true
-})
+    Description: {
+        type: String,
+        required: true,
+        default: "",
+    },
+}, {
+    timestamps: true,
+});
 
-const historyEnpenseModel = mongoose.model("historyEnpenses", historyEnpenseSchema);
+const historyEnpenseModel = mongoose.model("historyExpenses", historyEnpenseSchema);
 module.exports = historyEnpenseModel;

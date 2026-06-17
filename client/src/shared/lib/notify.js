@@ -21,6 +21,16 @@ export function notifyDeleted(message) {
   toast(message, toastClass("!bg-red-600 !text-white !border-red-500"))
 }
 
-export function notifyError(message) {
+export function notifyError(messageOrError) {
+  const status =
+    typeof messageOrError === "object" && messageOrError !== null
+      ? messageOrError.status
+      : undefined
+  if (status === 401) return
+
+  const message =
+    typeof messageOrError === "object" && messageOrError !== null
+      ? messageOrError.message
+      : messageOrError
   toast.error(message)
 }

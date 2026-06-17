@@ -11,38 +11,32 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { createItem, getCurrentMonthYear, updateItem } from "@/shared/api/item.api"
+import { createCategory, updateCategory } from "@/shared/api/category.api"
 
-export function ItemFormDialog({ open, onOpenChange, item, onSuccess, onError }) {
-  const isEdit = Boolean(item)
+export function CategoryFormDialog({ open, onOpenChange, category, onSuccess, onError }) {
+  const isEdit = Boolean(category)
   const [name, setName] = useState("")
-  const [amount, setAmount] = useState("")
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (open) {
-      setName(item?.Name || "")
-      setAmount("")
+      setName(category?.Name || "")
     }
-  }, [open, item])
+  }, [open, category])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     try {
       if (isEdit) {
-        await updateItem(item._id, { Name: name, MonthYear: item.MonthYear })
+        await updateCategory(category._id, { Name: name })
       } else {
-        await createItem({
-          Name: name,
-          MonthYear: getCurrentMonthYear(),
-          Amount: amount,
-        })
+        await createCategory({ Name: name })
       }
       onSuccess?.()
       onOpenChange(false)
     } catch (err) {
-      onError?.(err.message)
+      onError?.(err)
     } finally {
       setLoading(false)
     }
@@ -53,39 +47,25 @@ export function ItemFormDialog({ open, onOpenChange, item, onSuccess, onError })
       <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>{isEdit ? "Edit Item" : "Create Item"}</DialogTitle>
+            <DialogTitle>{isEdit ? "Edit Category" : "Create Category"}</DialogTitle>
             <DialogDescription>
               {isEdit
-                ? "Update the item name. Total is calculated from expenses."
-                : "Add a new tracking item. You can optionally set an initial amount."}
+                ? "Update the category name."
+                : "Add a custom category to track your expenses."}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="item-name">Name</Label>
+              <Label htmlFor="category-name">Name</Label>
               <Input
-                id="item-name"
+                id="category-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Breakfast"
+                placeholder="e.g. Groceries"
                 required
               />
             </div>
-
-            {!isEdit && (
-              <div className="space-y-2">
-                <Label htmlFor="item-amount">Initial amount (optional)</Label>
-                <Input
-                  id="item-amount"
-                  type="number"
-                  step="0.01"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="e.g. 35"
-                />
-              </div>
-            )}
           </div>
 
           <DialogFooter>
@@ -93,7 +73,7 @@ export function ItemFormDialog({ open, onOpenChange, item, onSuccess, onError })
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : isEdit ? "Save changes" : "Create item"}
+              {loading ? "Saving..." : isEdit ? "Save changes" : "Create category"}
             </Button>
           </DialogFooter>
         </form>

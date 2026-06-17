@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from "react"
 import { Pencil, Plus, Receipt, Trash2 } from "lucide-react"
 
 import { AmountDisplay } from "@/components/finance/AmountDisplay"
+import { CategoryFormDialog } from "@/components/finance/CategoryFormDialog"
 import { ConfirmDialog } from "@/components/finance/ConfirmDialog"
 import { ExpenseFormDialog } from "@/components/finance/ExpenseFormDialog"
-import { ItemFormDialog } from "@/components/finance/ItemFormDialog"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { deleteItem, getItems } from "@/shared/api/item.api"
+import { deleteCategory, getCategories, getCurrentMonthYear } from "@/shared/api/category.api"
 import {
   notifyCreated,
   notifyDeleted,
@@ -26,44 +26,44 @@ function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString()
 }
 
-export function ItemsTab() {
-  const [items, setItems] = useState([])
+export function CategoriesTab() {
+  const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
-  const [itemDialogOpen, setItemDialogOpen] = useState(false)
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false)
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false)
-  const [editingItem, setEditingItem] = useState(null)
-  const [expenseItemId, setExpenseItemId] = useState("")
+  const [editingCategory, setEditingCategory] = useState(null)
+  const [expenseCategoryId, setExpenseCategoryId] = useState("")
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  const fetchItems = useCallback(async () => {
+  const fetchCategories = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await getItems()
-      setItems(res.items || [])
+      const res = await getCategories(getCurrentMonthYear())
+      setCategories(res.categories || [])
     } catch (err) {
-      notifyError(err.message)
+      notifyError(err)
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    fetchItems()
-  }, [fetchItems])
+    fetchCategories()
+  }, [fetchCategories])
 
   const handleCreate = () => {
-    setEditingItem(null)
-    setItemDialogOpen(true)
+    setEditingCategory(null)
+    setCategoryDialogOpen(true)
   }
 
-  const handleEdit = (item) => {
-    setEditingItem(item)
-    setItemDialogOpen(true)
+  const handleEdit = (category) => {
+    setEditingCategory(category)
+    setCategoryDialogOpen(true)
   }
 
-  const handleAddExpense = (item) => {
-    setExpenseItemId(item._id)
+  const handleAddExpense = (category) => {
+    setExpenseCategoryId(category._id)
     setExpenseDialogOpen(true)
   }
 
@@ -71,12 +71,12 @@ export function ItemsTab() {
     if (!deleteTarget) return
     setDeleteLoading(true)
     try {
-      await deleteItem(deleteTarget._id)
+      await deleteCategory(deleteTarget._id)
       notifyDeleted(`"${deleteTarget.Name}" deleted`)
       setDeleteTarget(null)
-      fetchItems()
+      fetchCategories()
     } catch (err) {
-      notifyError(err.message)
+      notifyError(err)
     } finally {
       setDeleteLoading(false)
     }
@@ -86,68 +86,76 @@ export function ItemsTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-semibold font-[family-name:var(--font-display)]">Items</h2>
+          <h2 className="text-2xl font-semibold font-[family-name:var(--font-display)]">
+            Categories
+          </h2>
           <p className="text-sm text-muted-foreground">
-            Create budget items and track their running totals.
+            Track spending by category for the current month.
           </p>
         </div>
         <Button onClick={handleCreate}>
           <Plus className="size-4" />
-          Create item
+          Create category
         </Button>
       </div>
 
       {loading ? (
-        <p className="text-muted-foreground">Loading items...</p>
-      ) : items.length === 0 ? (
+        <p className="text-muted-foreground">Loading categories...</p>
+      ) : categories.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            No items yet. Create your first item to start tracking expenses.
+            No categories yet. Create your first category to start tracking expenses.
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4">
-          {items.map((item) => (
-            <Card key={item._id}>
+          {categories.map((category) => (
+            <Card key={category._id}>
               <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
                 <div>
-                  <CardTitle>{item.Name}</CardTitle>
+                  <CardTitle>{category.Name}</CardTitle>
                   <CardDescription>
-                    {item.MonthYear} · Updated {formatDate(item.updatedAt)}
+                    {category.lastActivity
+                      ? `Last activity ${formatDate(category.lastActivity)}`
+                      : "No activity this month"}
                   </CardDescription>
                 </div>
-                <AmountDisplay value={item.TotalAmount} className="text-lg" />
+                <AmountDisplay value={category.monthTotal ?? 0} className="text-lg" />
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" onClick={() => handleAddExpense(item)}>
+                <Button size="sm" variant="outline" onClick={() => handleAddExpense(category)}>
                   <Receipt className="size-4" />
                   Add expense
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => handleEdit(item)}>
-                  <Pencil className="size-4" />
-                  Edit
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setDeleteTarget(item)}>
-                  <Trash2 className="size-4" />
-                  Delete
-                </Button>
+                {!category.isDefault && (
+                  <>
+                    <Button size="sm" variant="outline" onClick={() => handleEdit(category)}>
+                      <Pencil className="size-4" />
+                      Edit
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setDeleteTarget(category)}>
+                      <Trash2 className="size-4" />
+                      Delete
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
 
-      <ItemFormDialog
-        open={itemDialogOpen}
-        onOpenChange={setItemDialogOpen}
-        item={editingItem}
+      <CategoryFormDialog
+        open={categoryDialogOpen}
+        onOpenChange={setCategoryDialogOpen}
+        category={editingCategory}
         onSuccess={() => {
-          if (editingItem) {
-            notifyUpdated("Item updated")
+          if (editingCategory) {
+            notifyUpdated("Category updated")
           } else {
-            notifyCreated("Item created")
+            notifyCreated("Category created")
           }
-          fetchItems()
+          fetchCategories()
         }}
         onError={notifyError}
       />
@@ -155,11 +163,11 @@ export function ItemsTab() {
       <ExpenseFormDialog
         open={expenseDialogOpen}
         onOpenChange={setExpenseDialogOpen}
-        items={items}
-        defaultItemId={expenseItemId}
+        categories={categories}
+        defaultCategoryId={expenseCategoryId}
         onSuccess={() => {
           notifyCreated("Expense added")
-          fetchItems()
+          fetchCategories()
         }}
         onError={notifyError}
       />
@@ -169,13 +177,13 @@ export function ItemsTab() {
         onOpenChange={(open) => {
           if (!open) setDeleteTarget(null)
         }}
-        title="Delete item"
+        title="Delete category"
         description={
           deleteTarget
             ? `Delete "${deleteTarget.Name}" and all its expenses? This cannot be undone.`
             : ""
         }
-        confirmLabel="Delete item"
+        confirmLabel="Delete category"
         onConfirm={handleConfirmDelete}
         loading={deleteLoading}
       />

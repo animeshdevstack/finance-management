@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 
+import { CategorySelect } from "@/components/finance/CategorySelect"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -11,7 +12,6 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ItemSelect } from "@/components/finance/ItemSelect"
 import {
   createHistoryExpense,
   updateHistoryExpense,
@@ -20,37 +20,41 @@ import {
 export function ExpenseFormDialog({
   open,
   onOpenChange,
-  items,
+  categories,
   expense,
-  defaultItemId,
+  defaultCategoryId,
   onSuccess,
   onError,
 }) {
   const isEdit = Boolean(expense)
-  const [itemId, setItemId] = useState("")
+  const [categoryId, setCategoryId] = useState("")
   const [amount, setAmount] = useState("")
+  const [description, setDescription] = useState("")
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (open) {
-      setItemId(expense?.ItemId?._id || expense?.ItemId || defaultItemId || "")
+      setCategoryId(
+        expense?.CategoryId?._id || expense?.CategoryId || defaultCategoryId || ""
+      )
       setAmount(expense?.Amount != null ? String(expense.Amount) : "")
+      setDescription(expense?.Description || "")
     }
-  }, [open, expense, defaultItemId])
+  }, [open, expense, defaultCategoryId])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     try {
       if (isEdit) {
-        await updateHistoryExpense(expense._id, { Amount: amount })
+        await updateHistoryExpense(expense._id, { Amount: amount, Description: description })
       } else {
-        await createHistoryExpense({ itemId, amount })
+        await createHistoryExpense({ categoryId, amount, description })
       }
       onSuccess?.()
       onOpenChange(false)
     } catch (err) {
-      onError?.(err.message)
+      onError?.(err)
     } finally {
       setLoading(false)
     }
@@ -63,13 +67,17 @@ export function ExpenseFormDialog({
           <DialogHeader>
             <DialogTitle>{isEdit ? "Edit Expense" : "Add Expense"}</DialogTitle>
             <DialogDescription>
-              Enter a positive or negative amount. Negative values reduce the item total.
+              Enter the amount and a short description for this expense.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             {!isEdit && (
-              <ItemSelect items={items} value={itemId} onChange={setItemId} />
+              <CategorySelect
+                categories={categories}
+                value={categoryId}
+                onChange={setCategoryId}
+              />
             )}
 
             <div className="space-y-2">
@@ -84,13 +92,24 @@ export function ExpenseFormDialog({
                 required
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="expense-description">Description</Label>
+              <Input
+                id="expense-description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="e.g. Lunch at cafe"
+                required
+              />
+            </div>
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || (!isEdit && !itemId)}>
+            <Button type="submit" disabled={loading || (!isEdit && !categoryId)}>
               {loading ? "Saving..." : isEdit ? "Save changes" : "Add expense"}
             </Button>
           </DialogFooter>

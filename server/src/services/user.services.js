@@ -2,6 +2,7 @@ const userModel = require("../model/user.model");
 const crypto = require("crypto");
 const { generateToken, generateRefreshToken } = require("../helpers/jwt");
 const logger = require("../helpers/logger");
+const { seedDefaultCategories } = require("./category.services");
 const signUpUserServices = async(data) => {
     const { Name, Email, Phone } = data;
     try {
@@ -10,6 +11,7 @@ const signUpUserServices = async(data) => {
         }
         const user = new userModel({Name, Email, Phone});
         await user.save()
+        await seedDefaultCategories(user._id);
         return user
     } catch (error) {
         throw new Error(error.message)

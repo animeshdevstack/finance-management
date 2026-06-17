@@ -1,26 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Pencil, Plus, Trash2 } from "lucide-react"
+import { Plus } from "lucide-react"
 
-import { AmountDisplay } from "@/components/finance/AmountDisplay"
+import { CategoryFormDialog } from "@/components/finance/CategoryFormDialog"
+import { CategorySelect } from "@/components/finance/CategorySelect"
 import { ConfirmDialog } from "@/components/finance/ConfirmDialog"
 import { ExpenseFormDialog } from "@/components/finance/ExpenseFormDialog"
+import { ExpenseStatementList } from "@/components/finance/ExpenseStatementList"
 import { FilterSelect } from "@/components/finance/FilterSelect"
-import { ItemFormDialog } from "@/components/finance/ItemFormDialog"
-import { ItemSelect } from "@/components/finance/ItemSelect"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { getCategories } from "@/shared/api/category.api"
 import {
   deleteHistoryExpense,
   getHistoryExpenses,
 } from "@/shared/api/history-expense.api"
-import { getItems } from "@/shared/api/item.api"
 import {
   expenseMatchesPeriod,
-  filterItemsByMonthYear,
   getCurrentMonth,
   getCurrentYear,
   getMonthOptions,
   getYearOptions,
+  groupExpensesByDate,
 } from "@/shared/lib/date.utils"
 import {
   notifyCreated,
@@ -29,37 +29,22 @@ import {
   notifyUpdated,
 } from "@/shared/lib/notify"
 
-function formatDate(dateStr) {
-  if (!dateStr) return "—"
-  return new Date(dateStr).toLocaleString()
-}
-
-function getItemName(expense) {
-  if (expense.ItemId?.Name) return expense.ItemId.Name
-  return "Unknown item"
-}
-
 export function ExpenseManagementTab() {
-  const [items, setItems] = useState([])
+  const [categories, setCategories] = useState([])
   const [allExpenses, setAllExpenses] = useState([])
   const [filterYear, setFilterYear] = useState(String(getCurrentYear()))
   const [filterMonth, setFilterMonth] = useState(getCurrentMonth())
-  const [filterItemId, setFilterItemId] = useState("")
+  const [filterCategoryId, setFilterCategoryId] = useState("")
   const [loading, setLoading] = useState(true)
-  const [itemDialogOpen, setItemDialogOpen] = useState(false)
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false)
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  const itemsForPeriod = useMemo(
-    () => filterItemsByMonthYear(items, filterYear, filterMonth),
-    [items, filterYear, filterMonth]
-  )
-
   const yearOptions = useMemo(
-    () => getYearOptions(items).map((year) => ({ value: String(year), label: String(year) })),
-    [items]
+    () => getYearOptions(allExpenses).map((year) => ({ value: String(year), label: String(year) })),
+    [allExpenses]
   )
 
   const monthOptions = useMemo(
@@ -70,52 +55,55 @@ export function ExpenseManagementTab() {
   const expenses = useMemo(() => {
     return allExpenses.filter((expense) => {
       if (!expenseMatchesPeriod(expense, filterYear, filterMonth)) return false
-      if (filterItemId && expense.ItemId?._id !== filterItemId && expense.ItemId !== filterItemId) {
+      if (
+        filterCategoryId &&
+        expense.CategoryId?._id !== filterCategoryId &&
+        expense.CategoryId !== filterCategoryId
+      ) {
         return false
       }
       return true
     })
-  }, [allExpenses, filterYear, filterMonth, filterItemId])
+  }, [allExpenses, filterYear, filterMonth, filterCategoryId])
 
-  const fetchItems = useCallback(async () => {
+  const groupedExpenses = useMemo(
+    () => groupExpensesByDate(expenses),
+    [expenses]
+  )
+
+  const fetchCategories = useCallback(async () => {
     try {
-      const res = await getItems()
-      setItems(res.items || [])
+      const res = await getCategories()
+      setCategories(res.categories || [])
     } catch (err) {
-      notifyError(err.message)
+      notifyError(err)
     }
   }, [])
 
   const fetchExpenses = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await getHistoryExpenses(filterItemId || undefined)
+      const res = await getHistoryExpenses(filterCategoryId || undefined)
       setAllExpenses(res.data || [])
     } catch (err) {
-      notifyError(err.message)
+      notifyError(err)
     } finally {
       setLoading(false)
     }
-  }, [filterItemId])
+  }, [filterCategoryId])
 
   useEffect(() => {
-    fetchItems()
-  }, [fetchItems])
+    fetchCategories()
+  }, [fetchCategories])
 
   useEffect(() => {
     fetchExpenses()
   }, [fetchExpenses])
 
-  useEffect(() => {
-    if (!filterItemId) return
-    const stillValid = itemsForPeriod.some((item) => item._id === filterItemId)
-    if (!stillValid) setFilterItemId("")
-  }, [filterItemId, itemsForPeriod])
-
   const handleClearFilters = () => {
     setFilterYear(String(getCurrentYear()))
     setFilterMonth(getCurrentMonth())
-    setFilterItemId("")
+    setFilterCategoryId("")
   }
 
   const handleAddExpense = () => {
@@ -136,9 +124,9 @@ export function ExpenseManagementTab() {
       notifyDeleted("Expense deleted")
       setDeleteTarget(null)
       fetchExpenses()
-      fetchItems()
+      fetchCategories()
     } catch (err) {
-      notifyError(err.message)
+      notifyError(err)
     } finally {
       setDeleteLoading(false)
     }
@@ -147,7 +135,7 @@ export function ExpenseManagementTab() {
   const hasCustomFilters =
     filterYear !== String(getCurrentYear()) ||
     filterMonth !== getCurrentMonth() ||
-    filterItemId !== ""
+    filterCategoryId !== ""
 
   return (
     <div className="space-y-4">
@@ -157,15 +145,15 @@ export function ExpenseManagementTab() {
             Expense Management
           </h2>
           <p className="text-sm text-muted-foreground">
-            View and manage expense entries by year, month, and item.
+            View and manage expense entries by year, month, and category.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => setItemDialogOpen(true)}>
+          <Button variant="outline" onClick={() => setCategoryDialogOpen(true)}>
             <Plus className="size-4" />
-            Create new
+            Create category
           </Button>
-          <Button onClick={handleAddExpense} disabled={itemsForPeriod.length === 0}>
+          <Button onClick={handleAddExpense}>
             <Plus className="size-4" />
             Add expense
           </Button>
@@ -187,11 +175,11 @@ export function ExpenseManagementTab() {
           onChange={setFilterMonth}
           options={monthOptions}
         />
-        <ItemSelect
-          items={itemsForPeriod}
-          value={filterItemId}
-          onChange={setFilterItemId}
-          label="Filter by item"
+        <CategorySelect
+          categories={categories}
+          value={filterCategoryId}
+          onChange={setFilterCategoryId}
+          label="Filter by category"
           required={false}
           allowAll
         />
@@ -212,63 +200,23 @@ export function ExpenseManagementTab() {
       ) : expenses.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            {itemsForPeriod.length === 0
-              ? "No items for this month. Create an item or change the year/month filters."
-              : "No expenses found for this filter."}
+            No expenses found for this filter.
           </CardContent>
         </Card>
       ) : (
-        <div className="rounded-xl border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-secondary/50 text-left">
-                <th className="px-4 py-3 font-medium">Item</th>
-                <th className="px-4 py-3 font-medium">Amount</th>
-                <th className="px-4 py-3 font-medium">Date</th>
-                <th className="px-4 py-3 font-medium text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {expenses.map((expense) => (
-                <tr key={expense._id} className="border-b last:border-0">
-                  <td className="px-4 py-3">{getItemName(expense)}</td>
-                  <td className="px-4 py-3">
-                    <AmountDisplay value={expense.Amount} />
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatDate(expense.createdAt)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEditExpense(expense)}
-                      >
-                        <Pencil className="size-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setDeleteTarget(expense)}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ExpenseStatementList
+          groups={groupedExpenses}
+          onEdit={handleEditExpense}
+          onDelete={setDeleteTarget}
+        />
       )}
 
-      <ItemFormDialog
-        open={itemDialogOpen}
-        onOpenChange={setItemDialogOpen}
+      <CategoryFormDialog
+        open={categoryDialogOpen}
+        onOpenChange={setCategoryDialogOpen}
         onSuccess={() => {
-          notifyCreated("Item created")
-          fetchItems()
+          notifyCreated("Category created")
+          fetchCategories()
         }}
         onError={notifyError}
       />
@@ -276,7 +224,7 @@ export function ExpenseManagementTab() {
       <ExpenseFormDialog
         open={expenseDialogOpen}
         onOpenChange={setExpenseDialogOpen}
-        items={itemsForPeriod}
+        categories={categories}
         expense={editingExpense}
         onSuccess={() => {
           if (editingExpense) {
@@ -285,7 +233,7 @@ export function ExpenseManagementTab() {
             notifyCreated("Expense added")
           }
           fetchExpenses()
-          fetchItems()
+          fetchCategories()
         }}
         onError={notifyError}
       />
@@ -296,7 +244,7 @@ export function ExpenseManagementTab() {
           if (!open) setDeleteTarget(null)
         }}
         title="Delete expense"
-        description="Delete this expense? The item total will be adjusted. This cannot be undone."
+        description="Delete this expense? This cannot be undone."
         confirmLabel="Delete expense"
         onConfirm={handleConfirmDelete}
         loading={deleteLoading}

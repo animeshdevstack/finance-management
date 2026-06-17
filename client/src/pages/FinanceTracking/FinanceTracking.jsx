@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CategoriesTab } from "@/components/finance/CategoriesTab"
 import { ExpenseManagementTab } from "@/components/finance/ExpenseManagementTab"
-import { ItemsTab } from "@/components/finance/ItemsTab"
+import { FinanceDashboardTab } from "@/components/finance/FinanceDashboardTab"
 
 export default function FinanceTracking() {
   return (
@@ -10,18 +11,23 @@ export default function FinanceTracking() {
           Finance Tracking
         </h1>
         <p className="text-muted-foreground mt-1">
-          Manage your items and track expense history.
+          View analytics, manage categories, and track expense history.
         </p>
       </div>
 
-      <Tabs defaultValue="items">
+      <Tabs defaultValue="dashboard">
         <TabsList className="mb-6">
-          <TabsTrigger value="items">Items</TabsTrigger>
+          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="categories">Categories</TabsTrigger>
           <TabsTrigger value="expenses">Expense Management</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="items">
-          <ItemsTab />
+        <TabsContent value="dashboard">
+          <FinanceDashboardTab />
+        </TabsContent>
+
+        <TabsContent value="categories">
+          <CategoriesTab />
         </TabsContent>
 
         <TabsContent value="expenses">

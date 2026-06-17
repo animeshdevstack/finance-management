@@ -10,9 +10,9 @@ const getUserId = (req) => req.user.data.userId;
 
 const createHistoryExpense = async (req, res) => {
     try {
-        const { itemId, amount } = req.body;
+        const { categoryId, amount, description } = req.body;
         const userId = getUserId(req);
-        const historyExpense = await createHistoryExpenseServices(userId, itemId, amount);
+        const historyExpense = await createHistoryExpenseServices(userId, categoryId, amount, description);
         return res.status(200).json({
             success: true,
             message: "History expense created successfully",
@@ -25,13 +25,13 @@ const createHistoryExpense = async (req, res) => {
             error: error.message,
         });
     }
-}
+};
 
 const getAllHistoryExpense = async (req, res) => {
     try {
         const userId = getUserId(req);
-        const { itemId } = req.query;
-        const historyExpense = await getAllHistoryExpenseServices(userId, itemId);
+        const { categoryId } = req.query;
+        const historyExpense = await getAllHistoryExpenseServices(userId, categoryId);
         return res.status(200).json({
             success: true,
             message: "History expense fetched successfully",
@@ -44,7 +44,7 @@ const getAllHistoryExpense = async (req, res) => {
             error: error.message,
         });
     }
-}
+};
 
 const getHistoryExpenseById = async (req, res) => {
     try {
@@ -64,14 +64,14 @@ const getHistoryExpenseById = async (req, res) => {
             error: error.message,
         });
     }
-}
+};
 
 const updateHistoryExpense = async (req, res) => {
     try {
         const { id } = req.params;
-        const { Amount } = req.body;
+        const { Amount, Description } = req.body;
         const userId = getUserId(req);
-        const updatedHistoryExpense = await updateHistoryExpenseServices(id, userId, Amount);
+        const updatedHistoryExpense = await updateHistoryExpenseServices(id, userId, { Amount, Description });
         return res.status(200).json({
             success: true,
             message: "History expense updated successfully",
@@ -85,7 +85,7 @@ const updateHistoryExpense = async (req, res) => {
             error: error.message,
         });
     }
-}
+};
 
 const deleteHistoryExpense = async (req, res) => {
     try {
@@ -105,7 +105,7 @@ const deleteHistoryExpense = async (req, res) => {
             error: error.message,
         });
     }
-}
+};
 
 module.exports = {
     createHistoryExpense,
@@ -113,4 +113,4 @@ module.exports = {
     getHistoryExpenseById,
     updateHistoryExpense,
     deleteHistoryExpense,
-}
+};

@@ -1,4 +1,4 @@
-import { getToken } from "@/shared/lib/storage"
+import { getToken, handleUnauthorized } from "@/shared/lib/storage"
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1"
 
@@ -12,6 +12,11 @@ export class ApiError extends Error {
 
 async function parseResponse(response) {
   const data = await response.json().catch(() => ({}))
+
+  if (response.status === 401) {
+    handleUnauthorized()
+    throw new ApiError(data.message || "Session expired", 401)
+  }
 
   if (!response.ok) {
     throw new ApiError(

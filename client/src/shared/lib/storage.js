@@ -39,6 +39,11 @@ export function clearAuthSession() {
   localStorage.removeItem(STORAGE_KEYS.USER)
 }
 
+export function handleUnauthorized() {
+  clearAuthSession()
+  window.dispatchEvent(new Event("auth-change"))
+}
+
 export function isAuthenticated() {
   return Boolean(getToken())
 }
