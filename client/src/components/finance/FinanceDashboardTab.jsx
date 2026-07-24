@@ -10,13 +10,12 @@ import { CategorySpendChart } from "@/components/finance/CategorySpendChart"
 import { ExpenseStatementList } from "@/components/finance/ExpenseStatementList"
 import { Card, CardContent } from "@/components/ui/card"
 import { getCategories } from "@/shared/api/category.api"
-import { getHistoryExpenses } from "@/shared/api/history-expense.api"
+import { getHistoryExpenseAnalytics } from "@/shared/api/history-expense.api"
 import {
   aggregateByCategory,
   getAnalyticsSummary,
 } from "@/shared/lib/analytics.utils"
 import {
-  expenseInRange,
   groupExpensesByDate,
   isValidDateRange,
   resolvePeriodRange,
@@ -26,7 +25,7 @@ import { notifyError } from "@/shared/lib/notify"
 export function FinanceDashboardTab() {
   const defaults = getDefaultDashboardFilters()
   const [categories, setCategories] = useState([])
-  const [allExpenses, setAllExpenses] = useState([])
+  const [expenses, setExpenses] = useState([])
   const [loading, setLoading] = useState(true)
   const [filterCategoryId, setFilterCategoryId] = useState("")
   const [periodMode, setPeriodMode] = useState(defaults.mode)
@@ -51,26 +50,19 @@ export function FinanceDashboardTab() {
   const rangeIsValid =
     periodMode !== "range" || isValidDateRange(rangeStart, rangeEnd)
 
-  const filteredExpenses = useMemo(() => {
-    if (!rangeIsValid) return []
-
-    const { start, end } = periodRange
-    return allExpenses.filter((expense) => expenseInRange(expense, start, end))
-  }, [allExpenses, periodRange, rangeIsValid])
-
   const chartData = useMemo(
-    () => aggregateByCategory(filteredExpenses),
-    [filteredExpenses]
+    () => aggregateByCategory(expenses),
+    [expenses]
   )
 
   const summary = useMemo(
-    () => getAnalyticsSummary(filteredExpenses),
-    [filteredExpenses]
+    () => getAnalyticsSummary(expenses),
+    [expenses]
   )
 
   const groupedExpenses = useMemo(
-    () => groupExpensesByDate(filteredExpenses),
-    [filteredExpenses]
+    () => groupExpensesByDate(expenses),
+    [expenses]
   )
 
   const fetchCategories = useCallback(async () => {
@@ -83,16 +75,27 @@ export function FinanceDashboardTab() {
   }, [])
 
   const fetchExpenses = useCallback(async () => {
+    if (!rangeIsValid) {
+      setExpenses([])
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     try {
-      const res = await getHistoryExpenses(filterCategoryId || undefined)
-      setAllExpenses(res.data || [])
+      const { start, end } = periodRange
+      const res = await getHistoryExpenseAnalytics({
+        categoryId: filterCategoryId || undefined,
+        start,
+        end,
+      })
+      setExpenses(res.data || [])
     } catch (err) {
       notifyError(err)
     } finally {
       setLoading(false)
     }
-  }, [filterCategoryId])
+  }, [filterCategoryId, periodRange, rangeIsValid])
 
   useEffect(() => {
     fetchCategories()
@@ -128,7 +131,6 @@ export function FinanceDashboardTab() {
           rangeEnd={rangeEnd}
           onRangeEndChange={setRangeEnd}
           periodLabel={periodRange.label}
-          expenses={allExpenses}
         />
 
         <CategorySelect

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Loader2 } from "lucide-react"
 
 import { ContactMethodToggle } from "@/components/auth/ContactMethodToggle"
@@ -8,11 +8,19 @@ import { Label } from "@/components/ui/label"
 import { signIn } from "@/shared/api/auth.api"
 import { CONTACT_METHODS } from "@/shared/constants/auth"
 
-export function SignInForm({ onSuccess, onError }) {
-  const [contactMethod, setContactMethod] = useState(CONTACT_METHODS.EMAIL)
+export function SignInForm({ onSuccess, onError, initialContactMethod }) {
+  const [contactMethod, setContactMethod] = useState(
+    initialContactMethod ?? CONTACT_METHODS.EMAIL
+  )
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (initialContactMethod) {
+      setContactMethod(initialContactMethod)
+    }
+  }, [initialContactMethod])
 
   const handleSubmit = async (event) => {
     event.preventDefault()

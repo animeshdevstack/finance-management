@@ -5,8 +5,8 @@ import { Label } from "@/components/ui/label"
 import {
   getCurrentMonth,
   getCurrentYear,
+  getFixedYearOptions,
   getMonthOptions,
-  getYearOptions,
   isValidDateRange,
   toDateKey,
 } from "@/shared/lib/date.utils"
@@ -34,9 +34,9 @@ export function AnalyticsPeriodFilter({
   rangeEnd,
   onRangeEndChange,
   periodLabel,
-  expenses = [],
+  yearOptions: yearOptionsProp,
 }) {
-  const yearOptions = getYearOptions(expenses).map((y) => ({
+  const yearOptions = (yearOptionsProp ?? getFixedYearOptions()).map((y) => ({
     value: String(y),
     label: String(y),
   }))

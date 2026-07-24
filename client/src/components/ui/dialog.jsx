@@ -2,7 +2,7 @@ import { useEffect } from "react"
 
 import { cn } from "@/shared/lib/utils"
 
-export function Dialog({ open, onOpenChange, children }) {
+export function Dialog({ open, onOpenChange, children, className }) {
   useEffect(() => {
     if (!open) return
     const onKeyDown = (e) => {
@@ -22,7 +22,7 @@ export function Dialog({ open, onOpenChange, children }) {
         aria-label="Close dialog"
         onClick={() => onOpenChange(false)}
       />
-      <div className="relative z-10 w-full max-w-md">{children}</div>
+      <div className={cn("relative z-10 w-full max-w-md", className)}>{children}</div>
     </div>
   )
 }

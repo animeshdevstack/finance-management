@@ -15,7 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AUTH_STEPS, AUTH_TABS } from "@/shared/constants/auth"
+import { AUTH_STEPS, AUTH_TABS, CONTACT_METHODS } from "@/shared/constants/auth"
 import { useAuth } from "@/shared/hooks/useAuth"
 
 import "./Auth.css"
@@ -26,6 +26,9 @@ export default function Auth() {
 
   const [step, setStep] = useState(AUTH_STEPS.CREDENTIALS)
   const [activeTab, setActiveTab] = useState(AUTH_TABS.SIGN_IN)
+  const [signInContactMethod, setSignInContactMethod] = useState(
+    CONTACT_METHODS.EMAIL
+  )
   const [otpContext, setOtpContext] = useState({ userId: "", contact: "" })
 
   const handleSignInSuccess = ({ userId, contact }) => {
@@ -34,10 +37,18 @@ export default function Auth() {
     toast.success("OTP sent. Check your database during development.")
   }
 
-  const handleSignUpSuccess = ({ contact }) => {
+  const handleSignUpSuccess = ({ contact, contactMethod }) => {
     toast.success("Account created. Sign in to receive your OTP.")
+    setSignInContactMethod(contactMethod ?? CONTACT_METHODS.EMAIL)
     setActiveTab(AUTH_TABS.SIGN_IN)
     setOtpContext((prev) => ({ ...prev, contact }))
+  }
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab)
+    if (tab === AUTH_TABS.SIGN_UP) {
+      setSignInContactMethod(CONTACT_METHODS.EMAIL)
+    }
   }
 
   const handleOtpSuccess = (session) => {
@@ -67,7 +78,7 @@ export default function Auth() {
             </CardHeader>
 
             <CardContent>
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <Tabs value={activeTab} onValueChange={handleTabChange}>
                 <TabsList className="mb-4">
                   <TabsTrigger value={AUTH_TABS.SIGN_IN}>Sign In</TabsTrigger>
                   <TabsTrigger value={AUTH_TABS.SIGN_UP}>Sign Up</TabsTrigger>
@@ -75,6 +86,7 @@ export default function Auth() {
 
                 <TabsContent value={AUTH_TABS.SIGN_IN}>
                   <SignInForm
+                    initialContactMethod={signInContactMethod}
                     onSuccess={handleSignInSuccess}
                     onError={handleError}
                   />

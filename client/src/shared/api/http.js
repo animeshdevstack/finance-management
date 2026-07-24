@@ -32,8 +32,11 @@ async function parseResponse(response) {
   return data
 }
 
-function authHeaders() {
-  const headers = { "Content-Type": "application/json" }
+function authHeaders(contentType = "application/json") {
+  const headers = {}
+  if (contentType) {
+    headers["Content-Type"] = contentType
+  }
   const token = getToken()
   if (token) {
     headers.Authorization = `Bearer ${token}`
@@ -41,11 +44,11 @@ function authHeaders() {
   return headers
 }
 
-async function request(path, options = {}) {
+async function request(path, options = {}, contentType = "application/json") {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
-      ...authHeaders(),
+      ...authHeaders(contentType),
       ...options.headers,
     },
   })
@@ -69,6 +72,22 @@ export async function put(path, body) {
     method: "PUT",
     body: JSON.stringify(body),
   })
+}
+
+export async function postFormData(path, formData) {
+  const token = getToken()
+  const headers = {}
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers,
+    body: formData,
+  })
+
+  return parseResponse(response)
 }
 
 export async function remove(path) {
