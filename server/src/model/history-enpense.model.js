@@ -25,5 +25,7 @@ const historyEnpenseSchema = new mongoose.Schema({
     timestamps: true,
 });
 
+historyEnpenseSchema.index({ UserId: 1, createdAt: -1 });
+
 const historyEnpenseModel = mongoose.model("historyExpenses", historyEnpenseSchema);
 module.exports = historyEnpenseModel;

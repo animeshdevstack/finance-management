@@ -5,6 +5,7 @@ import { CategoryFormDialog } from "@/components/finance/CategoryFormDialog"
 import { CategorySelect } from "@/components/finance/CategorySelect"
 import { ConfirmDialog } from "@/components/finance/ConfirmDialog"
 import { ExpenseFormDialog } from "@/components/finance/ExpenseFormDialog"
+import { ExpensePagination, EXPENSE_PAGE_SIZE_OPTIONS } from "@/components/finance/ExpensePagination"
 import { ExpenseStatementList } from "@/components/finance/ExpenseStatementList"
 import { FilterSelect } from "@/components/finance/FilterSelect"
 import { Button } from "@/components/ui/button"
@@ -15,11 +16,10 @@ import {
   getHistoryExpenses,
 } from "@/shared/api/history-expense.api"
 import {
-  expenseMatchesPeriod,
   getCurrentMonth,
   getCurrentYear,
+  getFixedYearOptions,
   getMonthOptions,
-  getYearOptions,
   groupExpensesByDate,
 } from "@/shared/lib/date.utils"
 import {
@@ -29,9 +29,14 @@ import {
   notifyUpdated,
 } from "@/shared/lib/notify"
 
+const DEFAULT_PAGINATION = { page: 1, limit: 20, total: 0, totalPages: 0 }
+
 export function ExpenseManagementTab() {
   const [categories, setCategories] = useState([])
-  const [allExpenses, setAllExpenses] = useState([])
+  const [expenses, setExpenses] = useState([])
+  const [pagination, setPagination] = useState(DEFAULT_PAGINATION)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(EXPENSE_PAGE_SIZE_OPTIONS[0])
   const [filterYear, setFilterYear] = useState(String(getCurrentYear()))
   const [filterMonth, setFilterMonth] = useState(getCurrentMonth())
   const [filterCategoryId, setFilterCategoryId] = useState("")
@@ -43,28 +48,18 @@ export function ExpenseManagementTab() {
   const [deleteLoading, setDeleteLoading] = useState(false)
 
   const yearOptions = useMemo(
-    () => getYearOptions(allExpenses).map((year) => ({ value: String(year), label: String(year) })),
-    [allExpenses]
+    () =>
+      getFixedYearOptions().map((year) => ({
+        value: String(year),
+        label: String(year),
+      })),
+    []
   )
 
   const monthOptions = useMemo(
     () => getMonthOptions().map((m) => ({ value: m.value, label: m.label })),
     []
   )
-
-  const expenses = useMemo(() => {
-    return allExpenses.filter((expense) => {
-      if (!expenseMatchesPeriod(expense, filterYear, filterMonth)) return false
-      if (
-        filterCategoryId &&
-        expense.CategoryId?._id !== filterCategoryId &&
-        expense.CategoryId !== filterCategoryId
-      ) {
-        return false
-      }
-      return true
-    })
-  }, [allExpenses, filterYear, filterMonth, filterCategoryId])
 
   const groupedExpenses = useMemo(
     () => groupExpensesByDate(expenses),
@@ -83,14 +78,21 @@ export function ExpenseManagementTab() {
   const fetchExpenses = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await getHistoryExpenses(filterCategoryId || undefined)
-      setAllExpenses(res.data || [])
+      const res = await getHistoryExpenses({
+        categoryId: filterCategoryId || undefined,
+        year: filterYear,
+        month: filterMonth,
+        page,
+        limit: pageSize,
+      })
+      setExpenses(res.data || [])
+      setPagination(res.pagination || DEFAULT_PAGINATION)
     } catch (err) {
       notifyError(err)
     } finally {
       setLoading(false)
     }
-  }, [filterCategoryId])
+  }, [filterCategoryId, filterYear, filterMonth, page, pageSize])
 
   useEffect(() => {
     fetchCategories()
@@ -100,10 +102,31 @@ export function ExpenseManagementTab() {
     fetchExpenses()
   }, [fetchExpenses])
 
+  const handleFilterYearChange = (value) => {
+    setFilterYear(value)
+    setPage(1)
+  }
+
+  const handleFilterMonthChange = (value) => {
+    setFilterMonth(value)
+    setPage(1)
+  }
+
+  const handleFilterCategoryChange = (value) => {
+    setFilterCategoryId(value)
+    setPage(1)
+  }
+
+  const handlePageSizeChange = (value) => {
+    setPageSize(value)
+    setPage(1)
+  }
+
   const handleClearFilters = () => {
     setFilterYear(String(getCurrentYear()))
     setFilterMonth(getCurrentMonth())
     setFilterCategoryId("")
+    setPage(1)
   }
 
   const handleAddExpense = () => {
@@ -165,20 +188,20 @@ export function ExpenseManagementTab() {
           id="filter-year"
           label="Year"
           value={filterYear}
-          onChange={setFilterYear}
+          onChange={handleFilterYearChange}
           options={yearOptions}
         />
         <FilterSelect
           id="filter-month"
           label="Month"
           value={filterMonth}
-          onChange={setFilterMonth}
+          onChange={handleFilterMonthChange}
           options={monthOptions}
         />
         <CategorySelect
           categories={categories}
           value={filterCategoryId}
-          onChange={setFilterCategoryId}
+          onChange={handleFilterCategoryChange}
           label="Filter by category"
           required={false}
           allowAll
@@ -204,11 +227,22 @@ export function ExpenseManagementTab() {
           </CardContent>
         </Card>
       ) : (
-        <ExpenseStatementList
-          groups={groupedExpenses}
-          onEdit={handleEditExpense}
-          onDelete={setDeleteTarget}
-        />
+        <>
+          <ExpenseStatementList
+            groups={groupedExpenses}
+            onEdit={handleEditExpense}
+            onDelete={setDeleteTarget}
+          />
+          <ExpensePagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            limit={pageSize}
+            onPageChange={setPage}
+            onLimitChange={handlePageSizeChange}
+            loading={loading}
+          />
+        </>
       )}
 
       <CategoryFormDialog

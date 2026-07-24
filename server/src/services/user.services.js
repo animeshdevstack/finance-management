@@ -6,10 +6,17 @@ const { seedDefaultCategories } = require("./category.services");
 const signUpUserServices = async(data) => {
     const { Name, Email, Phone } = data;
     try {
-        if(!Name && (!Email || !Phone )) {
-            throw new Error("Name Email or Phone should be requried!")
+        if (!Name?.trim()) {
+            throw new Error("Name is required!")
         }
-        const user = new userModel({Name, Email, Phone});
+        if (!Email && !Phone) {
+            throw new Error("Email or Phone is required!")
+        }
+        const user = new userModel({
+            Name: Name.trim(),
+            ...(Email && { Email }),
+            ...(Phone && { Phone }),
+        });
         await user.save()
         await seedDefaultCategories(user._id);
         return user

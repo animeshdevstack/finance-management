@@ -33,6 +33,11 @@ export function getMonthOptions() {
   return MONTHS
 }
 
+export function getFixedYearOptions(span = 5) {
+  const current = getCurrentYear()
+  return Array.from({ length: span + 1 }, (_, i) => current - i)
+}
+
 export function getYearOptions(expenses, currentYear = getCurrentYear()) {
   const years = new Set([currentYear])
   for (const expense of expenses) {

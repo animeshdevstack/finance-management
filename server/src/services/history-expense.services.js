@@ -24,12 +24,62 @@ const createHistoryExpenseServices = async (userId, categoryId, amount, descript
     return historyExpense;
 };
 
-const getAllHistoryExpenseServices = async (userId, categoryId) => {
+function buildUserFilter(userId, categoryId) {
     const filter = { UserId: userId };
     if (categoryId) {
         filter.CategoryId = categoryId;
     }
-    return historyEnpenseModel.find(filter).sort({ createdAt: -1 }).populate("CategoryId", "Name");
+    return filter;
+}
+
+function buildMonthDateFilter(year, month) {
+    const start = new Date(Number(year), Number(month) - 1, 1);
+    const end = new Date(Number(year), Number(month), 1);
+    return { $gte: start, $lt: end };
+}
+
+const getAllHistoryExpenseServices = async (userId, { categoryId, year, month, page = 1, limit = 20 }) => {
+    const filter = buildUserFilter(userId, categoryId);
+    filter.createdAt = buildMonthDateFilter(year, month);
+
+    const pageNum = Math.max(1, Number(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, Number(limit) || 20));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [total, data] = await Promise.all([
+        historyEnpenseModel.countDocuments(filter),
+        historyEnpenseModel
+            .find(filter)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limitNum)
+            .populate("CategoryId", "Name"),
+    ]);
+
+    const totalPages = total === 0 ? 0 : Math.ceil(total / limitNum);
+
+    return {
+        data,
+        pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total,
+            totalPages,
+        },
+    };
+};
+
+const getHistoryExpenseAnalyticsServices = async (userId, { categoryId, start, end }) => {
+    const filter = buildUserFilter(userId, categoryId);
+    filter.createdAt = {
+        $gte: new Date(start),
+        $lte: new Date(end),
+    };
+
+    return historyEnpenseModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .populate("CategoryId", "Name");
 };
 
 const getHistoryExpenseByIdServices = async (id, userId) => {
@@ -70,6 +120,7 @@ const deleteHistoryExpenseServices = async (id, userId) => {
 module.exports = {
     createHistoryExpenseServices,
     getAllHistoryExpenseServices,
+    getHistoryExpenseAnalyticsServices,
     getHistoryExpenseByIdServices,
     updateHistoryExpenseServices,
     deleteHistoryExpenseServices,

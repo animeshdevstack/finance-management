@@ -17,6 +17,19 @@ import {
   updateHistoryExpense,
 } from "@/shared/api/history-expense.api"
 
+const AMOUNT_INPUT_PATTERN = /^-?\d*\.?\d*$/
+
+function parseAmount(value) {
+  const trimmed = value.trim()
+  const parsed = Number(trimmed)
+
+  if (!trimmed || trimmed === "-" || trimmed === "." || Number.isNaN(parsed)) {
+    return null
+  }
+
+  return parsed
+}
+
 export function ExpenseFormDialog({
   open,
   onOpenChange,
@@ -42,14 +55,35 @@ export function ExpenseFormDialog({
     }
   }, [open, expense, defaultCategoryId])
 
+  const handleAmountChange = (event) => {
+    const { value } = event.target
+    if (value === "" || AMOUNT_INPUT_PATTERN.test(value)) {
+      setAmount(value)
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    const parsedAmount = parseAmount(amount)
+    if (parsedAmount == null) {
+      onError?.(new Error("Enter a valid amount."))
+      return
+    }
+
     setLoading(true)
     try {
       if (isEdit) {
-        await updateHistoryExpense(expense._id, { Amount: amount, Description: description })
+        await updateHistoryExpense(expense._id, {
+          Amount: parsedAmount,
+          Description: description,
+        })
       } else {
-        await createHistoryExpense({ categoryId, amount, description })
+        await createHistoryExpense({
+          categoryId,
+          amount: parsedAmount,
+          description,
+        })
       }
       onSuccess?.()
       onOpenChange(false)
@@ -67,7 +101,8 @@ export function ExpenseFormDialog({
           <DialogHeader>
             <DialogTitle>{isEdit ? "Edit Expense" : "Add Expense"}</DialogTitle>
             <DialogDescription>
-              Enter the amount and a short description for this expense.
+              Enter the amount and a short description. Use a negative amount for
+              refunds or credits.
             </DialogDescription>
           </DialogHeader>
 
@@ -84,10 +119,11 @@ export function ExpenseFormDialog({
               <Label htmlFor="expense-amount">Amount</Label>
               <Input
                 id="expense-amount"
-                type="number"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={handleAmountChange}
                 placeholder="e.g. 35 or -10"
                 required
               />

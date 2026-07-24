@@ -4,25 +4,27 @@ const { Schema } = mongoose;
 const userSchema = new Schema({
     Name: {
         type: String,
-        require: true
+        required: true
     },
     Email: {
         type: String,
-        require: function () {
+        required: function () {
             return !this.Phone
         },
-        unique: true
+        unique: true,
+        sparse: true
     },
     Phone: {
         type: String,
-        require: function () {
-            return this.Email
+        required: function () {
+            return !this.Email
         },
-        unique: true
+        unique: true,
+        sparse: true
     },
     Otp: {
         type: Number,
-        require: false
+        required: false
     }
 }, {
     timestamps: true
