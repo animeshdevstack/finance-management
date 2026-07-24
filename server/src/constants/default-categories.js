@@ -5,6 +5,7 @@ const DEFAULT_CATEGORIES = [
     "Entertainment",
     "Investment",
     "Lend",
+    "Uncategory",
 ];
 
 module.exports = { DEFAULT_CATEGORIES };

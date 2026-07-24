@@ -2,7 +2,7 @@ import { Pencil, Trash2 } from "lucide-react"
 
 import { AmountDisplay } from "@/components/finance/AmountDisplay"
 import { Button } from "@/components/ui/button"
-import { formatExpenseTime } from "@/shared/lib/date.utils"
+import { formatExpenseTime, getExpenseDate } from "@/shared/lib/date.utils"
 
 function getCategoryName(expense) {
   if (expense.CategoryId?.Name) return expense.CategoryId.Name
@@ -39,7 +39,7 @@ export function ExpenseStatementList({ groups, onEdit, onDelete, readOnly = fals
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm">{getExpenseLabel(expense)}</p>
                   <p className="text-xs text-muted-foreground">
-                    {formatExpenseTime(expense.createdAt)}
+                    {formatExpenseTime(getExpenseDate(expense))}
                   </p>
                 </div>
 

@@ -38,19 +38,25 @@ export function getFixedYearOptions(span = 5) {
   return Array.from({ length: span + 1 }, (_, i) => current - i)
 }
 
+export function getExpenseDate(expense) {
+  return expense?.transactionDate ?? expense?.createdAt
+}
+
 export function getYearOptions(expenses, currentYear = getCurrentYear()) {
   const years = new Set([currentYear])
   for (const expense of expenses) {
-    if (expense?.createdAt) {
-      years.add(new Date(expense.createdAt).getFullYear())
+    const dateValue = getExpenseDate(expense)
+    if (dateValue) {
+      years.add(new Date(dateValue).getFullYear())
     }
   }
   return [...years].sort((a, b) => b - a)
 }
 
 export function expenseMatchesPeriod(expense, year, month) {
-  if (!expense?.createdAt) return false
-  const date = new Date(expense.createdAt)
+  const dateValue = getExpenseDate(expense)
+  if (!dateValue) return false
+  const date = new Date(dateValue)
   return (
     date.getFullYear() === Number(year) &&
     String(date.getMonth() + 1).padStart(2, "0") === month
@@ -94,9 +100,10 @@ export function groupExpensesByDate(expenses) {
   const groupsMap = new Map()
 
   for (const expense of expenses) {
-    if (!expense?.createdAt) continue
+    const dateValue = getExpenseDate(expense)
+    if (!dateValue) continue
 
-    const dateKey = toDateKey(expense.createdAt)
+    const dateKey = toDateKey(dateValue)
     if (!groupsMap.has(dateKey)) {
       groupsMap.set(dateKey, {
         dateKey,
@@ -116,7 +123,7 @@ export function groupExpensesByDate(expenses) {
     .map((group) => ({
       ...group,
       expenses: group.expenses.sort(
-        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        (a, b) => new Date(getExpenseDate(b)) - new Date(getExpenseDate(a))
       ),
     }))
 }
@@ -165,8 +172,9 @@ export function getDayRange(dateKey) {
 }
 
 export function expenseInRange(expense, start, end) {
-  if (!expense?.createdAt) return false
-  const date = new Date(expense.createdAt)
+  const dateValue = getExpenseDate(expense)
+  if (!dateValue) return false
+  const date = new Date(dateValue)
   return date >= start && date <= end
 }
 

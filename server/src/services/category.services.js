@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const categoryModel = require("../model/category.model");
 const historyEnpenseModel = require("../model/history-enpense.model");
 const { DEFAULT_CATEGORIES } = require("../constants/default-categories");
+const { buildEffectiveDateRangeMatch } = require("../helpers/expense-date.helper");
 
 function getCurrentMonthYear() {
     const now = new Date();
@@ -59,14 +60,14 @@ const getCategoriesWithMonthTotalsServices = async (userId, monthYear = getCurre
         {
             $match: {
                 UserId: new mongoose.Types.ObjectId(userId),
-                createdAt: { $gte: start, $lt: end },
+                ...buildEffectiveDateRangeMatch(start, end),
             },
         },
         {
             $group: {
                 _id: "$CategoryId",
                 monthTotal: { $sum: "$Amount" },
-                lastActivity: { $max: "$createdAt" },
+                lastActivity: { $max: { $ifNull: ["$transactionDate", "$createdAt"] } },
             },
         },
     ]);

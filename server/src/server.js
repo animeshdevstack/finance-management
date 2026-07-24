@@ -5,6 +5,7 @@ const configuration = require("./config/configuration");
 const Connection = require("./libs/connection");
 const categoryRouter = require("./routes/category.routes");
 const historyExpenseRouter = require("./routes/history-expense.routes");
+const statementImportRouter = require("./routes/statement-import.routes");
 const logger = require("./helpers/logger");
 const app = new Express();
 const appVersion = configuration.version
@@ -31,6 +32,7 @@ app.get("/", (req, res) => {
 app.use(appVersion, userRouter)
 app.use(`${appVersion}/categories`, categoryRouter)
 app.use(`${appVersion}/history-expenses`, historyExpenseRouter)
+app.use(`${appVersion}/statement-import`, statementImportRouter)
 
 Connection()
 

@@ -1,5 +1,7 @@
+const mongoose = require("mongoose");
 const historyEnpenseModel = require("../model/history-enpense.model");
 const { getCategoryByIdServices } = require("./category.services");
+const { buildEffectiveDateRangeMatch } = require("../helpers/expense-date.helper");
 
 const createHistoryExpenseServices = async (userId, categoryId, amount, description) => {
     if (!categoryId || amount == null || amount === "") {
@@ -19,15 +21,16 @@ const createHistoryExpenseServices = async (userId, categoryId, amount, descript
         CategoryId: categoryId,
         Amount: numericAmount,
         Description: trimmedDescription,
+        transactionDate: new Date(),
     });
 
     return historyExpense;
 };
 
 function buildUserFilter(userId, categoryId) {
-    const filter = { UserId: userId };
+    const filter = { UserId: new mongoose.Types.ObjectId(userId) };
     if (categoryId) {
-        filter.CategoryId = categoryId;
+        filter.CategoryId = new mongoose.Types.ObjectId(categoryId);
     }
     return filter;
 }
@@ -35,27 +38,74 @@ function buildUserFilter(userId, categoryId) {
 function buildMonthDateFilter(year, month) {
     const start = new Date(Number(year), Number(month) - 1, 1);
     const end = new Date(Number(year), Number(month), 1);
-    return { $gte: start, $lt: end };
+    return { start, end };
+}
+
+function categoryLookupStages() {
+    return [
+        {
+            $lookup: {
+                from: "categories",
+                localField: "CategoryId",
+                foreignField: "_id",
+                as: "categoryDoc",
+            },
+        },
+        {
+            $unwind: {
+                path: "$categoryDoc",
+                preserveNullAndEmptyArrays: true,
+            },
+        },
+        {
+            $addFields: {
+                CategoryId: {
+                    _id: "$categoryDoc._id",
+                    Name: "$categoryDoc.Name",
+                },
+            },
+        },
+        {
+            $project: {
+                categoryDoc: 0,
+                effectiveDate: 0,
+            },
+        },
+    ];
 }
 
 const getAllHistoryExpenseServices = async (userId, { categoryId, year, month, page = 1, limit = 20 }) => {
-    const filter = buildUserFilter(userId, categoryId);
-    filter.createdAt = buildMonthDateFilter(year, month);
+    const { start, end } = buildMonthDateFilter(year, month);
+    const baseMatch = {
+        ...buildUserFilter(userId, categoryId),
+        ...buildEffectiveDateRangeMatch(start, end),
+    };
 
     const pageNum = Math.max(1, Number(page) || 1);
     const limitNum = Math.min(100, Math.max(1, Number(limit) || 20));
     const skip = (pageNum - 1) * limitNum;
 
-    const [total, data] = await Promise.all([
-        historyEnpenseModel.countDocuments(filter),
-        historyEnpenseModel
-            .find(filter)
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limitNum)
-            .populate("CategoryId", "Name"),
+    const pipeline = [
+        { $match: baseMatch },
+        {
+            $addFields: {
+                effectiveDate: { $ifNull: ["$transactionDate", "$createdAt"] },
+            },
+        },
+        { $sort: { effectiveDate: -1 } },
+    ];
+
+    const [countResult, data] = await Promise.all([
+        historyEnpenseModel.aggregate([...pipeline, { $count: "total" }]),
+        historyEnpenseModel.aggregate([
+            ...pipeline,
+            { $skip: skip },
+            { $limit: limitNum },
+            ...categoryLookupStages(),
+        ]),
     ]);
 
+    const total = countResult[0]?.total ?? 0;
     const totalPages = total === 0 ? 0 : Math.ceil(total / limitNum);
 
     return {
@@ -70,16 +120,21 @@ const getAllHistoryExpenseServices = async (userId, { categoryId, year, month, p
 };
 
 const getHistoryExpenseAnalyticsServices = async (userId, { categoryId, start, end }) => {
-    const filter = buildUserFilter(userId, categoryId);
-    filter.createdAt = {
-        $gte: new Date(start),
-        $lte: new Date(end),
+    const baseMatch = {
+        ...buildUserFilter(userId, categoryId),
+        ...buildEffectiveDateRangeMatch(new Date(start), new Date(end), true),
     };
 
-    return historyEnpenseModel
-        .find(filter)
-        .sort({ createdAt: -1 })
-        .populate("CategoryId", "Name");
+    return historyEnpenseModel.aggregate([
+        { $match: baseMatch },
+        {
+            $addFields: {
+                effectiveDate: { $ifNull: ["$transactionDate", "$createdAt"] },
+            },
+        },
+        { $sort: { effectiveDate: -1 } },
+        ...categoryLookupStages(),
+    ]);
 };
 
 const getHistoryExpenseByIdServices = async (id, userId) => {

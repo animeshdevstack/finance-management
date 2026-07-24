@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Plus } from "lucide-react"
+import { FileUp, Plus } from "lucide-react"
 
 import { CategoryFormDialog } from "@/components/finance/CategoryFormDialog"
 import { CategorySelect } from "@/components/finance/CategorySelect"
@@ -8,6 +8,7 @@ import { ExpenseFormDialog } from "@/components/finance/ExpenseFormDialog"
 import { ExpensePagination, EXPENSE_PAGE_SIZE_OPTIONS } from "@/components/finance/ExpensePagination"
 import { ExpenseStatementList } from "@/components/finance/ExpenseStatementList"
 import { FilterSelect } from "@/components/finance/FilterSelect"
+import { StatementImportDialog } from "@/components/finance/StatementImportDialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { getCategories } from "@/shared/api/category.api"
@@ -46,6 +47,7 @@ export function ExpenseManagementTab() {
   const [editingExpense, setEditingExpense] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
 
   const yearOptions = useMemo(
     () =>
@@ -97,6 +99,12 @@ export function ExpenseManagementTab() {
   useEffect(() => {
     fetchCategories()
   }, [fetchCategories])
+
+  useEffect(() => {
+    if (importDialogOpen) {
+      fetchCategories()
+    }
+  }, [importDialogOpen, fetchCategories])
 
   useEffect(() => {
     fetchExpenses()
@@ -172,6 +180,10 @@ export function ExpenseManagementTab() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+            <FileUp className="size-4" />
+            Import statement
+          </Button>
           <Button variant="outline" onClick={() => setCategoryDialogOpen(true)}>
             <Plus className="size-4" />
             Create category
@@ -282,6 +294,21 @@ export function ExpenseManagementTab() {
         confirmLabel="Delete expense"
         onConfirm={handleConfirmDelete}
         loading={deleteLoading}
+      />
+
+      <StatementImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        categories={categories}
+        onSuccess={(result) => {
+          notifyCreated(
+            `Imported ${result.imported} transaction${result.imported === 1 ? "" : "s"}` +
+              (result.skipped ? ` (${result.skipped} skipped)` : "")
+          )
+          fetchExpenses()
+          fetchCategories()
+        }}
+        onError={notifyError}
       />
     </div>
   )
