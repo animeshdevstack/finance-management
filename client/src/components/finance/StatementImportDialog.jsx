@@ -12,7 +12,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { FilterSelect } from "@/components/finance/FilterSelect"
 import { ScrollableSelect } from "@/components/finance/ScrollableSelect"
+import {
+  DEFAULT_BANK_ID,
+  getBankConfig,
+  SUPPORTED_BANKS,
+} from "@/shared/constants/supported-banks"
 import {
   confirmStatementImport,
   parseStatementPdf,
@@ -38,6 +44,8 @@ export function StatementImportDialog({
   onError,
 }) {
   const [step, setStep] = useState("upload")
+  const [bank, setBank] = useState(DEFAULT_BANK_ID)
+  const [password, setPassword] = useState("")
   const [file, setFile] = useState(null)
   const [loading, setLoading] = useState(false)
   const [warnings, setWarnings] = useState([])
@@ -68,9 +76,22 @@ export function StatementImportDialog({
     ]
   }, [categories, rows])
 
+  const bankOptions = useMemo(
+    () =>
+      SUPPORTED_BANKS.map((item) => ({
+        value: item.id,
+        label: item.label,
+      })),
+    []
+  )
+
+  const selectedBank = useMemo(() => getBankConfig(bank), [bank])
+
   useEffect(() => {
     if (!open) {
       setStep("upload")
+      setBank(DEFAULT_BANK_ID)
+      setPassword("")
       setFile(null)
       setLoading(false)
       setWarnings([])
@@ -81,13 +102,21 @@ export function StatementImportDialog({
 
   const handleParse = async () => {
     if (!file) {
-      onError?.(new Error("Select an ICICI bank statement PDF."))
+      onError?.(new Error("Select a bank statement PDF."))
+      return
+    }
+
+    if (selectedBank?.requiresPassword && !password.trim()) {
+      onError?.(new Error("PDF password is required for HDFC statements."))
       return
     }
 
     setLoading(true)
     try {
-      const res = await parseStatementPdf(file)
+      const res = await parseStatementPdf(file, {
+        bank,
+        password: password.trim() || undefined,
+      })
       setWarnings(res.warnings || [])
       setStatementPeriod(res.statementPeriod || null)
       setRows(
@@ -162,15 +191,23 @@ export function StatementImportDialog({
     <Dialog open={open} onOpenChange={onOpenChange} className="max-w-5xl">
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Import ICICI statement</DialogTitle>
+          <DialogTitle>Import bank statement</DialogTitle>
           <DialogDescription>
-            Upload a text-based ICICI PDF, review parsed transactions, then import
-            them into your expense categories.
+            Choose your bank, upload a text-based PDF, review parsed transactions,
+            then import them into your expense categories.
           </DialogDescription>
         </DialogHeader>
 
         {step === "upload" ? (
           <div className="space-y-4">
+            <FilterSelect
+              id="statement-bank"
+              label="Bank"
+              value={bank}
+              onChange={setBank}
+              options={bankOptions}
+            />
+
             <div className="space-y-2">
               <Label htmlFor="statement-file">Bank statement PDF</Label>
               <Input
@@ -180,6 +217,24 @@ export function StatementImportDialog({
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
               />
             </div>
+
+            {selectedBank?.requiresPassword && (
+              <div className="space-y-2">
+                <Label htmlFor="statement-password">PDF password</Label>
+                <Input
+                  id="statement-password"
+                  type="password"
+                  autoComplete="off"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Enter PDF password"
+                />
+                <p className="text-xs text-muted-foreground">
+                  HDFC statements are password-protected. Use the password from your
+                  bank email or Customer ID.
+                </p>
+              </div>
+            )}
 
             {file && (
               <p className="text-sm text-muted-foreground">Selected: {file.name}</p>
