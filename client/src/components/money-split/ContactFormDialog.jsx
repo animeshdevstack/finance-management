@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Smartphone } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -12,11 +13,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { addContact } from "@/shared/api/contact.api"
+import { isContactPickerSupported, pickPhoneContacts } from "@/shared/lib/device-contacts"
 
 export function ContactFormDialog({ open, onOpenChange, onSuccess, onError }) {
   const [phone, setPhone] = useState("")
   const [displayName, setDisplayName] = useState("")
   const [loading, setLoading] = useState(false)
+  const phonePickerSupported = isContactPickerSupported()
 
   const handleOpenChange = (nextOpen) => {
     if (!nextOpen) {
@@ -25,6 +28,21 @@ export function ContactFormDialog({ open, onOpenChange, onSuccess, onError }) {
       setLoading(false)
     }
     onOpenChange(nextOpen)
+  }
+
+  const handlePickFromPhone = async () => {
+    try {
+      const [picked] = await pickPhoneContacts({ multiple: false })
+      if (!picked) return
+
+      setDisplayName(picked.displayName)
+      setPhone(picked.phone)
+    } catch (err) {
+      if (err?.name === "InvalidStateError" || err?.name === "NotAllowedError") {
+        return
+      }
+      onError?.(err)
+    }
   }
 
   const handleSubmit = async (event) => {
@@ -54,6 +72,13 @@ export function ContactFormDialog({ open, onOpenChange, onSuccess, onError }) {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {phonePickerSupported && (
+              <Button type="button" variant="outline" onClick={handlePickFromPhone}>
+                <Smartphone className="size-4" />
+                Pick from phone
+              </Button>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="contact-name">Name</Label>
               <Input
