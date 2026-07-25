@@ -24,9 +24,9 @@ export default function Dashboard() {
       </div>
 
       <div className="dashboard__grid">
-        <Card className="dashboard__card dashboard__card--muted">
+        <Card className="dashboard__card dashboard__card--active">
           <CardHeader>
-            <div className="dashboard__icon">
+            <div className="dashboard__icon dashboard__icon--active">
               <PiggyBank className="size-6" />
             </div>
             <CardTitle>Money Split</CardTitle>
@@ -35,19 +35,18 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <span className="dashboard__badge">Coming soon</span>
-            <Button asChild variant="outline" className="mt-4 w-full">
+            <Button asChild className="w-full">
               <Link to="/money-split">
-                View section
+                Open money split
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="dashboard__card dashboard__card--active">
+        <Card className="dashboard__card dashboard__card--muted">
           <CardHeader>
-            <div className="dashboard__icon dashboard__icon--active">
+            <div className="dashboard__icon">
               <TrendingUp className="size-6" />
             </div>
             <CardTitle>Finance Tracking</CardTitle>
@@ -56,7 +55,7 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild className="w-full">
+            <Button asChild variant="outline" className="w-full">
               <Link to="/finance-tracking">
                 Open finance tracking
                 <ArrowRight className="size-4" />

@@ -1,74 +1,116 @@
 const userModel = require("../model/user.model");
-const crypto = require("crypto");
 const { generateToken, generateRefreshToken } = require("../helpers/jwt");
 const logger = require("../helpers/logger");
+const { normalizePhone } = require("../helpers/phone.utils");
 const { seedDefaultCategories } = require("./category.services");
-const signUpUserServices = async(data) => {
+
+const signUpUserServices = async (data) => {
     const { Name, Email, Phone } = data;
     try {
         if (!Name?.trim()) {
-            throw new Error("Name is required!")
+            throw new Error("Name is required!");
         }
         if (!Email && !Phone) {
-            throw new Error("Email or Phone is required!")
+            throw new Error("Email or Phone is required!");
         }
+
+        const normalizedPhone = Phone ? normalizePhone(Phone) : undefined;
+        const now = new Date();
+
         const user = new userModel({
             Name: Name.trim(),
             ...(Email && { Email }),
-            ...(Phone && { Phone }),
+            ...(normalizedPhone && { Phone: normalizedPhone }),
+            accountState: "active",
+            lastLoginAt: now,
+            isProfileComplete: true,
         });
-        await user.save()
+
+        await user.save();
         await seedDefaultCategories(user._id);
-        return user
+        return user;
     } catch (error) {
-        throw new Error(error.message)
+        throw new Error(error.message);
     }
-}
-const signInUserServices = async(data) => {
+};
+
+const signInUserServices = async (data) => {
     const { Email, Phone } = data;
     try {
-        if(!Email && !Phone) {
-            throw new Error("Email or Phone is requried to login!")
+        if (!Email && !Phone) {
+            throw new Error("Email or Phone is requried to login!");
         }
+
         const filters = [];
         if (Email) filters.push({ Email });
-        if (Phone) filters.push({ Phone });
+        if (Phone) filters.push({ Phone: normalizePhone(Phone) });
 
         const userData = await userModel.findOne({ $or: filters });
         if (!userData) {
-            throw new Error("User not found")
+            throw new Error("User not found");
         }
+
         const updatedUser = await createOtp(userData._id);
         return updatedUser;
     } catch (error) {
-        throw new Error(error.message)
+        throw new Error(error.message);
     }
-}
+};
 
-const OTPVerificationServices = async(data) => {
+const OTPVerificationServices = async (data) => {
     try {
         const { userId, otp } = data;
         const userData = await userModel.findById(userId);
-        if(!userData) {
-            throw new Error("User not found!")
+        if (!userData) {
+            throw new Error("User not found!");
         }
         if (String(userData.Otp) !== String(otp) && otp !== "000000") {
-            throw new Error("Invalid OTP!")
+            throw new Error("Invalid OTP!");
         }
-        const token = generateToken({ userId: userData._id, Name: userData.Name, Email: userData?.Email, Phone: userData?.Phone }, "1h");
-        const refreshToken = generateRefreshToken({ userId: userData._id, Name: userData.Name, Email: userData?.Email, Phone: userData?.Phone }, "30d"); 
-        return { token, refreshToken, userDetails: userData }
+
+        const wasPending = userData.accountState === "pending";
+        const now = new Date();
+
+        userData.lastLoginAt = now;
+        userData.accountState = "active";
+        userData.Otp = undefined;
+        await userData.save();
+
+        if (wasPending) {
+            await seedDefaultCategories(userData._id);
+        }
+
+        const token = generateToken(
+            {
+                userId: userData._id,
+                Name: userData.Name,
+                Email: userData?.Email,
+                Phone: userData?.Phone,
+            },
+            "1h"
+        );
+        const refreshToken = generateRefreshToken(
+            {
+                userId: userData._id,
+                Name: userData.Name,
+                Email: userData?.Email,
+                Phone: userData?.Phone,
+            },
+            "30d"
+        );
+
+        return { token, refreshToken, userDetails: userData };
     } catch (error) {
-        throw new Error(error.message)
+        throw new Error(error.message);
     }
-}
+};
 
 async function createOtp(userId) {
     try {
         const OTP_EXPIRY_MS = 10 * 60 * 1000;
         const otp = Math.floor(100000 + Math.random() * 900000);
 
-        logger.log(":: otp ::", otp)
+        logger.log(":: otp ::", otp);
 
         const updatedUser = await userModel.findByIdAndUpdate(
             userId,
@@ -77,7 +119,7 @@ async function createOtp(userId) {
         );
 
         if (!updatedUser) {
-            throw new Error("User not found")
+            throw new Error("User not found");
         }
 
         setTimeout(async () => {
@@ -90,14 +132,15 @@ async function createOtp(userId) {
                 logger.error("Failed to clear expired OTP:", error.message);
             }
         }, OTP_EXPIRY_MS);
+
         return updatedUser;
     } catch (error) {
-        throw new Error(error.message)
+        throw new Error(error.message);
     }
 }
 
 module.exports = {
     signUpUserServices,
     signInUserServices,
-    OTPVerificationServices
-}
+    OTPVerificationServices,
+};
