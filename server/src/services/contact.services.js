@@ -12,7 +12,8 @@ function formatContact(contact, linkedUser) {
     return {
         _id: contact._id,
         displayName: contact.displayName,
-        phone: maskPhone(contact.phone),
+        phone: contact.phone,
+        phoneMasked: maskPhone(contact.phone),
         linkedUserId: contact.linkedUserId,
         linkedUser: linkedUser
             ? {

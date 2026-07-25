@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 
+import { MemberPickerSection } from "@/components/money-split/MemberPickerSection"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -11,19 +12,20 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { addContact } from "@/shared/api/contact.api"
 import { createGroup } from "@/shared/api/group.api"
-
-const EMPTY_MEMBER = { phone: "", displayName: "" }
 
 export function GroupFormDialog({
   open,
   onOpenChange,
   type = "group",
+  contacts = [],
   onSuccess,
   onError,
+  onContactsChanged,
 }) {
   const [name, setName] = useState("")
-  const [members, setMembers] = useState([{ ...EMPTY_MEMBER }])
+  const [selectedMembers, setSelectedMembers] = useState([])
   const [loading, setLoading] = useState(false)
 
   const isDirect = type === "direct"
@@ -31,7 +33,7 @@ export function GroupFormDialog({
   useEffect(() => {
     if (open) {
       setName(isDirect ? "Direct split" : "")
-      setMembers([{ ...EMPTY_MEMBER }])
+      setSelectedMembers([])
       setLoading(false)
     }
   }, [open, isDirect])
@@ -40,12 +42,13 @@ export function GroupFormDialog({
     onOpenChange(nextOpen)
   }
 
-  const updateMember = (index, field, value) => {
-    setMembers((prev) =>
-      prev.map((member, memberIndex) =>
-        memberIndex === index ? { ...member, [field]: value } : member
-      )
-    )
+  const savePhoneContact = (entry) => {
+    addContact({
+      phone: entry.phone,
+      displayName: entry.displayName,
+    })
+      .then(() => onContactsChanged?.())
+      .catch(() => {})
   }
 
   const handleSubmit = async (event) => {
@@ -53,8 +56,12 @@ export function GroupFormDialog({
     setLoading(true)
 
     try {
-      const memberPhones = members
-        .filter((member) => member.phone.trim())
+      const memberContactIds = selectedMembers
+        .filter((member) => member.contactId)
+        .map((member) => member.contactId)
+
+      const memberPhones = selectedMembers
+        .filter((member) => !member.contactId)
         .map((member) => ({
           phone: member.phone.trim(),
           displayName: member.displayName.trim() || "User",
@@ -64,6 +71,7 @@ export function GroupFormDialog({
         name: name.trim() || (isDirect ? "Direct split" : "Group"),
         type,
         memberPhones,
+        memberContactIds,
       })
 
       onSuccess?.(result.group)
@@ -83,8 +91,8 @@ export function GroupFormDialog({
             <DialogTitle>{isDirect ? "New direct split" : "New group"}</DialogTitle>
             <DialogDescription>
               {isDirect
-                ? "Add one person to split expenses one-to-one."
-                : "Add one or more people to split expenses together."}
+                ? "Pick a saved contact, choose from your phone, or add someone manually."
+                : "Pick saved contacts, choose from your phone, or add people manually."}
             </DialogDescription>
           </DialogHeader>
 
@@ -101,48 +109,20 @@ export function GroupFormDialog({
               </div>
             )}
 
-            {members.map((member, index) => (
-              <div key={index} className="grid gap-3 rounded-md border p-3">
-                <div className="space-y-2">
-                  <Label htmlFor={`member-name-${index}`}>Name</Label>
-                  <Input
-                    id={`member-name-${index}`}
-                    value={member.displayName}
-                    onChange={(event) =>
-                      updateMember(index, "displayName", event.target.value)
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor={`member-phone-${index}`}>Phone</Label>
-                  <Input
-                    id={`member-phone-${index}`}
-                    type="tel"
-                    inputMode="numeric"
-                    value={member.phone}
-                    onChange={(event) => updateMember(index, "phone", event.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-            ))}
-
-            {!isDirect && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setMembers((prev) => [...prev, { ...EMPTY_MEMBER }])}
-              >
-                Add another member
-              </Button>
-            )}
+            <MemberPickerSection
+              contacts={contacts}
+              selectedMembers={selectedMembers}
+              onChange={setSelectedMembers}
+              maxMembers={isDirect ? 1 : null}
+              onPhonePicked={savePhoneContact}
+            />
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || selectedMembers.length === 0}>
               {loading ? "Creating..." : isDirect ? "Create direct split" : "Create group"}
             </Button>
           </DialogFooter>

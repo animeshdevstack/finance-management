@@ -85,7 +85,8 @@ export function GroupsListPage() {
                 <div>
                   <p className="font-medium">{group.name}</p>
                   <p className="text-xs text-muted-foreground capitalize">
-                    {group.type} · {group.memberCount} members
+                    {group.type} · {group.memberCount} members · ₹
+                    {Number(group.totalSpent || 0).toFixed(2)} spent
                   </p>
                 </div>
                 <span className="text-xs text-muted-foreground">View</span>
@@ -111,7 +112,7 @@ export function GroupsListPage() {
               >
                 <div>
                   <p className="font-medium">{contact.displayName}</p>
-                  <p className="text-xs text-muted-foreground">{contact.phone}</p>
+                  <p className="text-xs text-muted-foreground">{contact.phoneMasked || contact.phone}</p>
                 </div>
                 <span className="text-xs capitalize text-muted-foreground">
                   {contact.linkedUser?.accountState || "pending"}
@@ -136,6 +137,8 @@ export function GroupsListPage() {
         open={directDialogOpen}
         onOpenChange={setDirectDialogOpen}
         type="direct"
+        contacts={contacts}
+        onContactsChanged={fetchData}
         onSuccess={(group) => {
           notifyCreated("Direct split ready")
           fetchData()
@@ -148,6 +151,8 @@ export function GroupsListPage() {
         open={groupDialogOpen}
         onOpenChange={setGroupDialogOpen}
         type="group"
+        contacts={contacts}
+        onContactsChanged={fetchData}
         onSuccess={(group) => {
           notifyCreated("Group created")
           fetchData()

@@ -90,7 +90,9 @@ export function GroupDetailPage() {
           <h2 className="text-2xl font-semibold font-[family-name:var(--font-display)]">
             {group.name}
           </h2>
-          <p className="text-sm text-muted-foreground capitalize">{group.type} split</p>
+          <p className="text-sm text-muted-foreground capitalize">
+            {group.type} split · ₹{Number(group.totalSpent || 0).toFixed(2)} total spent
+          </p>
         </div>
         <Button onClick={() => setExpenseDialogOpen(true)}>
           <Plus className="size-4" />
@@ -122,8 +124,11 @@ export function GroupDetailPage() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
           <CardTitle className="text-lg">Expenses</CardTitle>
+          <span className="text-sm font-medium tabular-nums">
+            Total: ₹{Number(group.totalSpent || 0).toFixed(2)}
+          </span>
         </CardHeader>
         <CardContent className="space-y-3">
           {expenses.length === 0 ? (

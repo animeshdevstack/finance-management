@@ -1,5 +1,7 @@
 const groupModel = require("../model/group.model");
 const groupMemberModel = require("../model/group-member.model");
+const contactModel = require("../model/contact.model");
+const sharedExpenseModel = require("../model/shared-expense.model");
 const userModel = require("../model/user.model");
 const { resolveUserByPhone } = require("./user-resolver.services");
 const { resolveAccountState } = require("../helpers/account-state.helper");
@@ -64,20 +66,54 @@ async function formatMember(userId, role) {
     };
 }
 
+async function resolveMembersFromContacts(creatorId, memberContactIds) {
+    const entries = [];
+
+    for (const contactId of memberContactIds) {
+        assertValidObjectId(contactId, "contact id");
+        const contact = await contactModel.findOne({
+            _id: contactId,
+            ownerUserId: creatorId,
+        });
+
+        if (!contact) {
+            throw new Error("One or more selected contacts were not found");
+        }
+
+        entries.push({
+            phone: contact.phone,
+            displayName: contact.displayName,
+        });
+    }
+
+    return entries;
+}
+
 async function createGroupServices(creatorId, data) {
     const type = assertGroupType(data.type);
     const name = assertNonEmptyString(data.name, "Group name");
     const memberPhones = Array.isArray(data.memberPhones) ? data.memberPhones : [];
+    const memberContactIds = Array.isArray(data.memberContactIds)
+        ? data.memberContactIds
+        : [];
 
     const creator = await userModel.findById(creatorId);
     if (!creator?.Phone) {
         throw new Error("Your account must have a phone number to create splits");
     }
 
+    const contactEntries = await resolveMembersFromContacts(creatorId, memberContactIds);
+    const allPhoneEntries = [...contactEntries, ...memberPhones];
+    const seenPhones = new Set();
     const resolvedMemberIds = [String(creatorId)];
 
-    for (const entry of memberPhones) {
+    for (const entry of allPhoneEntries) {
         const phone = assertValidPhone(entry.phone || entry);
+        if (seenPhones.has(phone)) {
+            continue;
+        }
+        seenPhones.add(phone);
+
         const displayName = entry.displayName || "User";
         const user = await resolveUserByPhone(phone, {
             createdByUserId: creatorId,
@@ -118,6 +154,24 @@ async function createGroupServices(creatorId, data) {
     return getGroupDetailServices(group._id, creatorId);
 }
 
+async function getTotalSpentByGroupIds(groupIds) {
+    if (groupIds.length === 0) {
+        return new Map();
+    }
+
+    const totals = await sharedExpenseModel.aggregate([
+        { $match: { groupId: { $in: groupIds } } },
+        { $group: { _id: "$groupId", totalSpent: { $sum: "$totalAmount" } } },
+    ]);
+
+    return new Map(
+        totals.map((entry) => [
+            String(entry._id),
+            Math.round(entry.totalSpent * 100) / 100,
+        ])
+    );
+}
+
 async function listGroupsServices(userId) {
     const memberships = await groupMemberModel.find({ userId });
     const groupIds = memberships.map((membership) => membership.groupId);
@@ -125,6 +179,8 @@ async function listGroupsServices(userId) {
     const groups = await groupModel
         .find({ _id: { $in: groupIds } })
         .sort({ updatedAt: -1 });
+
+    const totalSpentByGroup = await getTotalSpentByGroupIds(groupIds);
 
     return Promise.all(
         groups.map(async (group) => {
@@ -134,6 +190,7 @@ async function listGroupsServices(userId) {
                 name: group.name,
                 type: group.type,
                 memberCount: members.length,
+                totalSpent: totalSpentByGroup.get(String(group._id)) || 0,
                 createdAt: group.createdAt,
                 updatedAt: group.updatedAt,
             };
@@ -156,12 +213,15 @@ async function getGroupDetailServices(groupId, userId) {
         )
     ).filter(Boolean);
 
+    const totalSpentByGroup = await getTotalSpentByGroupIds([group._id]);
+
     return {
         _id: group._id,
         name: group.name,
         type: group.type,
         createdBy: group.createdBy,
         members: formattedMembers,
+        totalSpent: totalSpentByGroup.get(String(group._id)) || 0,
         createdAt: group.createdAt,
         updatedAt: group.updatedAt,
     };
