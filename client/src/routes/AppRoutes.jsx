@@ -37,7 +37,7 @@ export function AppRoutes() {
           }
         />
         <Route
-          path="/money-split"
+          path="/money-split/*"
           element={
             <ProtectedRoute>
               <MoneySplit />
