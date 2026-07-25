@@ -1,17 +1,28 @@
-const pdfParse = require("pdf-parse");
 const { randomUUID } = require("crypto");
 const categoryModel = require("../model/category.model");
 const historyEnpenseModel = require("../model/history-enpense.model");
-const { parseIciciStatementText } = require("../parsers/icici-statement.parser");
+const { extractPdfText } = require("../helpers/pdf-text.extractor");
+const { parseStatementText } = require("../parsers/statement-parser.registry");
+const {
+    assertSupportedBank,
+    getBankConfig,
+} = require("../constants/supported-banks");
 const { UNCATEGORY } = require("../helpers/suggest-category");
 const {
     seedDefaultCategories,
     createCategoryServices,
 } = require("./category.services");
 
-const parseStatementPdfServices = async (buffer) => {
-    const parsed = await pdfParse(buffer);
-    const result = parseIciciStatementText(parsed.text || "");
+const parseStatementPdfServices = async (buffer, { bank = "icici", password } = {}) => {
+    const normalizedBank = assertSupportedBank(bank);
+    const bankConfig = getBankConfig(normalizedBank);
+
+    if (bankConfig.requiresPassword && !password) {
+        throw new Error("PDF password is required for this bank statement.");
+    }
+
+    const text = await extractPdfText(buffer, { password });
+    const result = parseStatementText(normalizedBank, text);
 
     return {
         ...result,

@@ -2,8 +2,23 @@ const {
     parseStatementPdfServices,
     confirmStatementImportServices,
 } = require("../services/statement-import.services");
+const {
+    assertSupportedBank,
+    getBankConfig,
+    normalizeBankId,
+} = require("../constants/supported-banks");
 
 const getUserId = (req) => req.user.data.userId;
+
+function getClientErrorStatus(error) {
+    const message = error.message || "";
+    if (
+        /unsupported bank|password is required|invalid pdf password/i.test(message)
+    ) {
+        return 400;
+    }
+    return 500;
+}
 
 const parseStatement = async (req, res) => {
     try {
@@ -14,7 +29,23 @@ const parseStatement = async (req, res) => {
             });
         }
 
-        const result = await parseStatementPdfServices(req.file.buffer);
+        const bank = normalizeBankId(req.body.bank);
+        assertSupportedBank(bank);
+
+        const bankConfig = getBankConfig(bank);
+        const password = String(req.body.password || "").trim();
+
+        if (bankConfig.requiresPassword && !password) {
+            return res.status(400).json({
+                success: false,
+                message: "PDF password is required for this bank statement.",
+            });
+        }
+
+        const result = await parseStatementPdfServices(req.file.buffer, {
+            bank,
+            password: password || undefined,
+        });
 
         return res.status(200).json({
             success: true,
@@ -24,9 +55,10 @@ const parseStatement = async (req, res) => {
             warnings: result.warnings,
         });
     } catch (error) {
-        return res.status(500).json({
+        const status = getClientErrorStatus(error);
+        return res.status(status).json({
             success: false,
-            message: "Failed to parse statement",
+            message: status === 400 ? error.message : "Failed to parse statement",
             error: error.message,
         });
     }
