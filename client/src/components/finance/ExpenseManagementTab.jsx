@@ -38,6 +38,7 @@ export function ExpenseManagementTab() {
   const [pagination, setPagination] = useState(DEFAULT_PAGINATION)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(EXPENSE_PAGE_SIZE_OPTIONS[0])
+  const [listVersion, setListVersion] = useState(0)
   const [filterYear, setFilterYear] = useState(String(getCurrentYear()))
   const [filterMonth, setFilterMonth] = useState(getCurrentMonth())
   const [filterCategoryId, setFilterCategoryId] = useState("")
@@ -94,7 +95,7 @@ export function ExpenseManagementTab() {
     } finally {
       setLoading(false)
     }
-  }, [filterCategoryId, filterYear, filterMonth, page, pageSize])
+  }, [filterCategoryId, filterYear, filterMonth, page, pageSize, listVersion])
 
   useEffect(() => {
     fetchCategories()
@@ -305,7 +306,16 @@ export function ExpenseManagementTab() {
             `Imported ${result.imported} transaction${result.imported === 1 ? "" : "s"}` +
               (result.skipped ? ` (${result.skipped} skipped)` : "")
           )
-          fetchExpenses()
+
+          const periodStart = result.statementPeriod?.start
+          const match = periodStart && String(periodStart).match(/^(\d{4})-(\d{2})/)
+          if (match) {
+            setFilterYear(match[1])
+            setFilterMonth(match[2])
+            setFilterCategoryId("")
+          }
+          setPage(1)
+          setListVersion((version) => version + 1)
           fetchCategories()
         }}
         onError={notifyError}

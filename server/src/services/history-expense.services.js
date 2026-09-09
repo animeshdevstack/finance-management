@@ -82,7 +82,7 @@ const getAllHistoryExpenseServices = async (userId, { categoryId, year, month, p
     };
 
     const pageNum = Math.max(1, Number(page) || 1);
-    const limitNum = Math.min(100, Math.max(1, Number(limit) || 20));
+    const limitNum = Math.min(500, Math.max(1, Number(limit) || 20));
     const skip = (pageNum - 1) * limitNum;
 
     const pipeline = [

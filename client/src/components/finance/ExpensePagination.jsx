@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/shared/lib/utils"
 
-export const EXPENSE_PAGE_SIZE_OPTIONS = [20, 50, 100]
+export const EXPENSE_PAGE_SIZE_OPTIONS = [20, 50, 100, 200, 500]
 
 function getPageItems(page, totalPages, siblingCount = 1) {
   if (totalPages <= 1) return [1]
@@ -41,23 +41,30 @@ export function ExpensePagination({
   if (total === 0) return null
 
   const pageItems = getPageItems(page, totalPages)
+  const rangeStart = (page - 1) * limit + 1
+  const rangeEnd = Math.min(page * limit, total)
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
-      <select
-        id="expense-page-size"
-        aria-label="Items per page"
-        className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-        value={String(limit)}
-        disabled={loading}
-        onChange={(event) => onLimitChange(Number(event.target.value))}
-      >
-        {EXPENSE_PAGE_SIZE_OPTIONS.map((size) => (
-          <option key={size} value={String(size)}>
-            {size} per page
-          </option>
-        ))}
-      </select>
+      <div className="flex flex-wrap items-center gap-3">
+        <select
+          id="expense-page-size"
+          aria-label="Items per page"
+          className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+          value={String(limit)}
+          disabled={loading}
+          onChange={(event) => onLimitChange(Number(event.target.value))}
+        >
+          {EXPENSE_PAGE_SIZE_OPTIONS.map((size) => (
+            <option key={size} value={String(size)}>
+              {size} per page
+            </option>
+          ))}
+        </select>
+        <p className="text-sm text-muted-foreground">
+          Showing {rangeStart}–{rangeEnd} of {total}
+        </p>
+      </div>
 
       {totalPages > 1 && (
         <nav

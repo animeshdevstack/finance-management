@@ -18,7 +18,7 @@ app.use(cors({
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
 }));
-app.use(Express.json());
+app.use(Express.json({ limit: "5mb" }));
 
 app.use((req, res, next) => {
     logger.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);

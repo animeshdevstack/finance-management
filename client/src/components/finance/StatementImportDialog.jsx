@@ -176,7 +176,10 @@ export function StatementImportDialog({
     setLoading(true)
     try {
       const result = await confirmStatementImport(transactions)
-      onSuccess?.(result)
+      onSuccess?.({
+        ...result,
+        statementPeriod,
+      })
       onOpenChange(false)
     } catch (err) {
       onError?.(err)
@@ -275,13 +278,19 @@ export function StatementImportDialog({
               </div>
             )}
 
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={handleUncategorizeUnknown}>
-                Set unknown to Uncategory
-              </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => setStep("upload")}>
-                Upload another file
-              </Button>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-muted-foreground">
+                {rows.length} transaction{rows.length === 1 ? "" : "s"} parsed ·{" "}
+                {includedCount} selected
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={handleUncategorizeUnknown}>
+                  Set unknown to Uncategory
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setStep("upload")}>
+                  Upload another file
+                </Button>
+              </div>
             </div>
 
             <div className="overflow-x-auto rounded-lg border">
